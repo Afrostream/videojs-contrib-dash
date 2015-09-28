@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>video.js HLS Plugin Example</title>
+
+    <link href="node_modules/video.js/dist/video-js/video-js.css" rel="stylesheet">
+    <link href="dist/videojs-dash.css" rel="stylesheet">
+
+    <!-- video.js -->
+    <script src="node_modules/dashjs/dist/dash.all.js"></script>
+    <script src="node_modules/video.js/dist/video-js/video.dev.js"></script>
+    <script src="dist/videojs-dash.js"></script>
+
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+        }
+
+        .info {
+            background-color: #eee;
+            border: thin solid #333;
+            border-radius: 3px;
+            padding: 0 5px;
+            margin: 20px 0;
+        }
+    </style>
+
+</head>
+<body>
+<div class="info">
+    <p>The video below is an <a
+            href="https://developer.apple.com/library/ios/documentation/networkinginternet/conceptual/streamingmediaguide/Introduction/Introduction.html#//apple_ref/doc/uid/TP40008332-CH1-SW1">HTTP
+        Live Stream</a>. On desktop browsers other than Safari, the HLS plugin will polyfill support for the format on
+        top of the video.js Flash tech.</p>
+
+    <p>Due to security restrictions in Flash, you will have to load this page over HTTP(S) to see the example in
+        action.</p>
+</div>
+<video id="video"
+       class="video-js vjs-default-skin"
+       height="300"
+       width="600"
+       crossorigin
+       controls>
+    <source
+            src="http://origin.afrostream.tv/vod/FF_112_Afrostream_V2/98a76e65b74d03a8.ism/98a76e65b74d03a8.mpd"
+            type="application/dash+xml">
+    <track src="https://afrostream-img.s3-eu-west-1.amazonaws.com/production/caption/2015/09/913ed362da38f821ed4b-vimeocom136679382.fr.vtt"
+           kind="captions" srclang="fr" label="fr">
+</video>
+<script>
+    var player = videojs('video');
+</script>
+</body>
+</html>

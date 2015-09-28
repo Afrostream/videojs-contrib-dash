@@ -13,10 +13,12 @@
   "browser": true,
   "predef": [
     "Dash",
+    "MediaPlayer",
+    "videojs",
     "MediaPlayer"
   ],
   "nonew": true,
   "quotmark": "single",
   "trailing": true,
-  "maxlen": 100
+  "maxlen": 180
 }

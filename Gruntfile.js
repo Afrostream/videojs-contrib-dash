@@ -1,11 +1,11 @@
 'use strict';
 
-module.exports = function(grunt) {
+module.exports = function (grunt) {
   grunt.initConfig({
     pkg: grunt.file.readJSON('package.json'),
     banner: '/*! <%= pkg.title || pkg.name %> - v<%= pkg.version %> - ' +
-            '<%= grunt.template.today("yyyy-mm-dd") %>\n' +
-            ' * Copyright (c) <%= grunt.template.today("yyyy") %> Brightcove  */\n',
+    '<%= grunt.template.today("yyyy-mm-dd") %>\n' +
+    ' * Copyright (c) <%= grunt.template.today("yyyy") %> Brightcove  */\n',
 
     /* Build Stuff */
     clean: {
@@ -33,36 +33,28 @@ module.exports = function(grunt) {
     },
     uglify: {
       dist: {
-        src: [
-          'src/js/videojs-dash.js'
-        ],
-        dest: 'tmp/videojs-dash.min.js'
-      }
-    },
-    cssmin: {
-      target: {
-        files: {
-          'dist/videojs-dash.css': [
-            'src/css/videojs-dash.css'
-          ]
-        }
+        options: {
+          banner: '<%= banner %>'
+        },
+        src: '<%= concat.dist.dest %>',
+        dest: 'dist/videojs-dash.min.js'
       }
     },
     concat: {
-      options: {
-        banner: '<%= banner %>'
-      },
       dist: {
-        src: [
-          'tmp/videojs-dash.min.js'
-        ],
-        dest: 'dist/videojs-dash.min.js'
-      },
-      debug: {
-        src: [
-          'src/js/videojs-dash.js'
-        ],
+        options: {
+          banner: '<%= banner %>',
+          stripBanners: true
+        },
+        src: ['src/**/*.js'],
         dest: 'dist/videojs-dash.js'
+      }
+    },
+    less: {
+      dist: {
+        files: {
+          'dist/videojs-dash.css': 'src/**/*.less'
+        }
       }
     },
     qunit: {
@@ -76,13 +68,13 @@ module.exports = function(grunt) {
   require('load-grunt-tasks')(grunt);
   grunt.loadNpmTasks('videojs-automation');
 
-  grunt.registerTask('test', function() {
+  grunt.registerTask('test', function () {
     if (!process.env.TRAVIS || process.env.TRAVIS_PULL_REQUEST === 'false') {
       grunt.task.run(['qunit', 'videojs_automation']);
     } else {
       grunt.task.run('qunit');
     }
   });
-  grunt.registerTask('build', ['clean', 'jshint', 'uglify', 'cssmin', 'concat']);
+  grunt.registerTask('build', ['clean', 'jshint', 'concat', 'uglify', 'less']);
   grunt.registerTask('default', ['build', 'test']);
 };

@@ -1,21 +1,21 @@
-(function(window, videojs) {
+(function (window, videojs) {
   'use strict';
 
   var
-    isArray = function(a) {
+    isArray = function (a) {
       return Object.prototype.toString.call(a) === '[object Array]';
     },
     isObject = function (a) {
       return Object.prototype.toString.call(a) === '[object Object]';
     },
-    mergeOptions = function(obj1, obj2){
+    mergeOptions = function (obj1, obj2) {
       var key, val1, val2, res;
 
       // make a copy of obj1 so we're not overwriting original values.
       // like prototype.options_ and all sub options objects
       res = {};
 
-      for (key in obj2){
+      for (key in obj2) {
         if (obj2.hasOwnProperty(key)) {
           val1 = obj1[key];
           val2 = obj2[key];
@@ -36,7 +36,7 @@
    *
    * Use Dash.js to playback DASH content inside of Video.js via a SourceHandler
    */
-  function Html5DashJS (source, tech) {
+  function Html5DashJS(source, tech) {
     var
       options = tech.options(),
       manifestSource;
@@ -77,6 +77,15 @@
     // Must run controller before these two lines or else there is no
     // element to bind to.
     this.mediaPlayer_.startup();
+    this.mediaPlayer_.setAutoSwitchQuality(true);
+    this.mediaPlayer_.addEventListener(MediaPlayer.events.STREAM_INITIALIZED,
+      videojs.bind(this, this.onInitialized));
+    this.mediaPlayer_.addEventListener(MediaPlayer.events.STREAM_SWITCH_STARTED,
+      videojs.bind(this, this.onStreamSwitchComplete));
+    this.mediaPlayer_.addEventListener(MediaPlayer.events.STREAM_SWITCH_COMPLETED,
+      videojs.bind(this, this.onStreamSwitchComplete));
+    //this.mediaPlayer_.addEventListener(MediaPlayer.events.METRIC_CHANGED,
+    //  videojs.bind(this, this.onMetricChanged));
     this.mediaPlayer_.attachView(this.el_);
 
     // Dash.js autoplays by default
@@ -84,9 +93,227 @@
       this.mediaPlayer_.setAutoPlay(false);
     }
 
+    //this.mediaPlayer_.setAutoSwitchQuality(options.autoSwitch);
+
+
     // Fetches and parses the manifest - WARNING the callback is non-standard "error-last" style
     this.mediaPlayer_.retrieveManifest(manifestSource, videojs.bind(this, this.initializeDashJS));
+
   }
+
+  Html5DashJS.prototype.options_ = {
+    autoSwitch: true
+  };
+
+  Html5DashJS.prototype.onInitialized = function (manifest, err) {
+    if (err) {
+      this.player().error(err);
+    }
+    var bitrates = this.mediaPlayer_.getBitrateInfoListFor('video');
+    // bitrates are sorted from lowest to the best values
+    // so the last one has the best quality
+    //  maxQuality = bitrates[bitrates.length - 1].qualityIndex;
+    // set max quality
+    this.tech_['featuresBitrates'] = bitrates;
+    this.tech_['featuresBitrate'] = bitrates.length; //AUTO;
+
+    videojs.log('Bitrates available:' + bitrates.length);
+    //this.mediaPlayer_.setQualityFor('video', maxQuality);
+    //TODO generate methods from array
+    this.tech_.setQuality = videojs.bind(this, this.setQuality);
+    this.tech_.trigger('initialized');
+    this.tech_.trigger('bitratechange');
+  };
+
+  Html5DashJS.prototype.setQuality = function (qualityIndex) {
+    var bitrates = this.mediaPlayer_.getBitrateInfoListFor('video');
+    this.mediaPlayer_.setAutoSwitchQuality(qualityIndex >= bitrates.length);
+    this.mediaPlayer_.setQualityFor('video', qualityIndex);
+
+    //TODO supprimer ca pour le switch auto
+    this.tech_['featuresBitrate'] = qualityIndex; //AUTO;
+    this.tech_.trigger('bitratechange');
+
+  };
+
+  Html5DashJS.prototype.getBitrate = function () {
+    return this.mediaPlayer_.getBitrateInfoListFor('video');
+  };
+
+
+  Html5DashJS.prototype.getCribbedMetricsFor = function (type) {
+    var metrics = this.mediaPlayer_.getMetricsFor(type),
+      metricsExt = this.mediaPlayer_.getMetricsExt(),
+      repSwitch,
+      bufferLevel,
+      httpRequests,
+      droppedFramesMetrics,
+      bitrateIndexValue,
+      bandwidthValue,
+      pendingValue,
+      numBitratesValue,
+      bufferLengthValue = 0,
+      movingLatency = {},
+      movingDownload = {},
+      movingRatio = {},
+      droppedFramesValue = 0,
+      requestsQueue,
+      fillmoving = function (type, Requests) {
+        var requestWindow,
+          downloadTimes,
+          latencyTimes,
+          durationTimes;
+
+        requestWindow = Requests
+          .slice(-20)
+          .filter(function (req) {
+            return req.responsecode >= 200 && req.responsecode < 300 && !!req.mediaduration && req.type === 'Media Segment' && req.stream === type;
+          })
+          .slice(-4);
+        if (requestWindow.length > 0) {
+
+          latencyTimes = requestWindow.map(function (req) {
+            return Math.abs(req.tresponse.getTime() - req.trequest.getTime()) / 1000;
+          });
+
+          movingLatency[type] = {
+            average: latencyTimes.reduce(function (l, r) {
+              return l + r;
+            }) / latencyTimes.length,
+            high: latencyTimes.reduce(function (l, r) {
+              return l < r ? r : l;
+            }),
+            low: latencyTimes.reduce(function (l, r) {
+              return l < r ? l : r;
+            }),
+            count: latencyTimes.length
+          };
+
+          downloadTimes = requestWindow.map(function (req) {
+            return Math.abs(req.tfinish.getTime() - req.tresponse.getTime()) / 1000;
+          });
+
+          movingDownload[type] = {
+            average: downloadTimes.reduce(function (l, r) {
+              return l + r;
+            }) / downloadTimes.length,
+            high: downloadTimes.reduce(function (l, r) {
+              return l < r ? r : l;
+            }),
+            low: downloadTimes.reduce(function (l, r) {
+              return l < r ? l : r;
+            }),
+            count: downloadTimes.length
+          };
+
+          durationTimes = requestWindow.map(function (req) {
+            return req.mediaduration;
+          });
+
+          movingRatio[type] = {
+            average: (durationTimes.reduce(function (l, r) {
+              return l + r;
+            }) / downloadTimes.length) / movingDownload[type].average,
+            high: durationTimes.reduce(function (l, r) {
+              return l < r ? r : l;
+            }) / movingDownload[type].low,
+            low: durationTimes.reduce(function (l, r) {
+              return l < r ? l : r;
+            }) / movingDownload[type].high,
+            count: durationTimes.length
+          };
+        }
+      };
+
+    if (metrics && metricsExt) {
+      repSwitch = metricsExt.getCurrentRepresentationSwitch(metrics);
+      bufferLevel = metricsExt.getCurrentBufferLevel(metrics);
+      httpRequests = metricsExt.getHttpRequests(metrics);
+      droppedFramesMetrics = metricsExt.getCurrentDroppedFrames(metrics);
+      requestsQueue = metricsExt.getRequestsQueue(metrics);
+
+      fillmoving('video', httpRequests);
+      fillmoving('audio', httpRequests);
+
+      var streamIdx = this.streamInfo.index;
+
+      if (repSwitch !== null) {
+        bitrateIndexValue = metricsExt.getIndexForRepresentation(repSwitch.to, streamIdx);
+        bandwidthValue = metricsExt.getBandwidthForRepresentation(repSwitch.to, streamIdx);
+        bandwidthValue = bandwidthValue / 1000;
+        bandwidthValue = Math.round(bandwidthValue);
+      }
+
+      numBitratesValue = metricsExt.getMaxIndexForBufferType(type, streamIdx);
+
+      if (bufferLevel !== null) {
+        bufferLengthValue = bufferLevel.level.toPrecision(5);
+      }
+
+      if (droppedFramesMetrics !== null) {
+        droppedFramesValue = droppedFramesMetrics.droppedFrames;
+      }
+
+      if (isNaN(bandwidthValue) || bandwidthValue === undefined) {
+        bandwidthValue = 0;
+      }
+
+      if (isNaN(bitrateIndexValue) || bitrateIndexValue === undefined) {
+        bitrateIndexValue = 0;
+      }
+
+      if (isNaN(numBitratesValue) || numBitratesValue === undefined) {
+        numBitratesValue = 0;
+      }
+
+      if (isNaN(bufferLengthValue) || bufferLengthValue === undefined) {
+        bufferLengthValue = 0;
+      }
+
+      pendingValue = this.mediaPlayer_.getQualityFor(type);
+
+      return {
+        bandwidthValue: bandwidthValue,
+        bitrateIndexValue: bitrateIndexValue,
+        pendingIndex: (pendingValue !== bitrateIndexValue) ? '(-> ' + (pendingValue) + ')' : '',
+        numBitratesValue: numBitratesValue,
+        bufferLengthValue: bufferLengthValue,
+        droppedFramesValue: droppedFramesValue,
+        movingLatency: movingLatency,
+        movingDownload: movingDownload,
+        movingRatio: movingRatio,
+        requestsQueue: requestsQueue
+      };
+    }
+    else {
+      return null;
+    }
+  };
+
+
+  Html5DashJS.prototype.onMetricChanged = function (e) {
+    var metrics;
+    // get current buffered ranges of video element and keep them up to date
+    if (e.data.stream === 'video') {
+      metrics = this.getCribbedMetricsFor('video');
+      if (metrics) {
+        if (metrics.bitrateIndexValue !== this.tech_['featuresBitrate']) {
+          this.tech_['featuresBitrate'] = metrics.bitrateIndexValue;
+          this.tech_.trigger('bitratechange');
+        }
+      }
+    }
+  };
+
+  Html5DashJS.prototype.onStreamSwitchComplete = function (e) {
+    this.tech_['featuresBitrate'] = e.data.toStreamInfo.index;
+    this.streamInfo = e.data.toStreamInfo;
+    var evt = videojs.fixEvent({
+      type: 'bitratechange',
+      data: e.data
+    });
+    this.tech_.trigger(evt);
+  };
 
   Html5DashJS.prototype.initializeDashJS = function (manifest, err) {
     var manifestProtectionData = {};
@@ -108,7 +335,7 @@
     }
 
     // We have to reset any mediaKeys before the attachSource call below
-    this.resetSrc_(videojs.bind(this, function afterMediaKeysReset () {
+    this.resetSrc_(videojs.bind(this, function afterMediaKeysReset() {
       Html5DashJS.showErrors(this.elParent_);
 
       // Attach the source with any protection data
@@ -197,7 +424,8 @@
     if (this.mediaPlayer_) {
       this.mediaPlayer_.reset();
     }
-    this.resetSrc_(function noop(){});
+    this.resetSrc_(function noop() {
+    });
   };
 
   // Only add the SourceHandler if the browser supports MediaSourceExtensions
@@ -209,7 +437,7 @@
 
         if (dashTypeRE.test(source.type)) {
           return 'probably';
-        } else if (dashExtRE.test(source.src)){
+        } else if (dashExtRE.test(source.src)) {
           return 'maybe';
         } else {
           return '';
