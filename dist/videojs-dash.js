@@ -1,4 +1,4 @@
-/*! videojs-contrib-dash - v1.1.1 - 2015-09-28
+/*! videojs-contrib-dash - v1.1.1 - 2015-09-29
  * Copyright (c) 2015 Brightcove  */
 (function (window, videojs) {
   'use strict';
@@ -239,6 +239,11 @@
       videojs.bind(this, this.onStreamSwitchComplete));
     this.mediaPlayer_.addEventListener(MediaPlayer.events.STREAM_SWITCH_COMPLETED,
       videojs.bind(this, this.onStreamSwitchComplete));
+
+    //override config
+    MediaPlayer.dependencies.BufferController.BUFFER_TO_KEEP = 10;
+    MediaPlayer.dependencies.BufferController.BUFFER_PRUNING_INTERVAL = 10;
+
     //this.mediaPlayer_.addEventListener(MediaPlayer.events.METRIC_CHANGED,
     //  videojs.bind(this, this.onMetricChanged));
     this.mediaPlayer_.attachView(this.el_);
