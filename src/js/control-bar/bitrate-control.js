@@ -77,7 +77,7 @@
   videojs.BitrateMenuButton.prototype.onClick = function () {
     // select next rate option
     var currentRate = this.player().playbackRate();
-    var rates = this.player().tech['featuresBitrate'];
+    var rates = this.player().tech['featuresBitrateIndex'];
     // this will select first one if the last one currently selected
     var newRate = rates[0];
     for (var i = 0; i < rates.length; i++) {
@@ -110,7 +110,7 @@
    */
   videojs.BitrateMenuButton.prototype.updateLabel = function () {
     if (this.bitratesSupported()) {
-      var selected = this.player().tech['featuresBitrate'];
+      var selected = this.player().tech['featuresBitrateIndex'];
       this.labelEl_.innerHTML = videojs.BitrateMenuButton.Labels[selected];
     }
   };
@@ -131,7 +131,7 @@
       options['label'] = videojs.BitrateMenuButton.Labels[qualityIndex] || label;
       options['selected'] =
         (qualityIndex === player.tech['featuresBitrates'].length) ||
-          /* (qualityIndex === player.tech['featuresBitrate']) ||*/ 1;
+          /* (qualityIndex === player.tech['featuresBitrateIndex']) ||*/ 1;
       videojs.MenuItem.call(this, player, options);
 
       this.on(player, 'bitratechange', this.update);
@@ -145,7 +145,7 @@
   };
 
   videojs.BitrateMenuItem.prototype.update = function () {
-    this.selected(this.player().tech['featuresBitrate'] === this.bitrateIndex);
+    this.selected(this.player().tech['featuresBitrateIndex'] === this.bitrateIndex);
   };
 
 })(window, window.videojs);

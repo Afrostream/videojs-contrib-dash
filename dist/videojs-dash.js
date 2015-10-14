@@ -1,4 +1,4 @@
-/*! videojs-contrib-dash - v1.1.1 - 2015-09-29
+/*! videojs-contrib-dash - v1.1.1 - 2015-10-14
  * Copyright (c) 2015 Brightcove  */
 (function (window, videojs) {
   'use strict';
@@ -79,7 +79,7 @@
   videojs.BitrateMenuButton.prototype.onClick = function () {
     // select next rate option
     var currentRate = this.player().playbackRate();
-    var rates = this.player().tech['featuresBitrate'];
+    var rates = this.player().tech['featuresBitrateIndex'];
     // this will select first one if the last one currently selected
     var newRate = rates[0];
     for (var i = 0; i < rates.length; i++) {
@@ -112,7 +112,7 @@
    */
   videojs.BitrateMenuButton.prototype.updateLabel = function () {
     if (this.bitratesSupported()) {
-      var selected = this.player().tech['featuresBitrate'];
+      var selected = this.player().tech['featuresBitrateIndex'];
       this.labelEl_.innerHTML = videojs.BitrateMenuButton.Labels[selected];
     }
   };
@@ -133,7 +133,7 @@
       options['label'] = videojs.BitrateMenuButton.Labels[qualityIndex] || label;
       options['selected'] =
         (qualityIndex === player.tech['featuresBitrates'].length) ||
-          /* (qualityIndex === player.tech['featuresBitrate']) ||*/ 1;
+          /* (qualityIndex === player.tech['featuresBitrateIndex']) ||*/ 1;
       videojs.MenuItem.call(this, player, options);
 
       this.on(player, 'bitratechange', this.update);
@@ -147,7 +147,7 @@
   };
 
   videojs.BitrateMenuItem.prototype.update = function () {
-    this.selected(this.player().tech['featuresBitrate'] === this.bitrateIndex);
+    this.selected(this.player().tech['featuresBitrateIndex'] === this.bitrateIndex);
   };
 
 })(window, window.videojs);
@@ -244,8 +244,7 @@
     MediaPlayer.dependencies.BufferController.BUFFER_TO_KEEP = 10;
     MediaPlayer.dependencies.BufferController.BUFFER_PRUNING_INTERVAL = 10;
 
-    //this.mediaPlayer_.addEventListener(MediaPlayer.events.METRIC_CHANGED,
-    //  videojs.bind(this, this.onMetricChanged));
+    this.mediaPlayer_.addEventListener(MediaPlayer.events.METRIC_CHANGED, videojs.bind(this, this.onMetricChanged));
     this.mediaPlayer_.attachView(this.el_);
 
     // Dash.js autoplays by default
@@ -275,7 +274,7 @@
     //  maxQuality = bitrates[bitrates.length - 1].qualityIndex;
     // set max quality
     this.tech_['featuresBitrates'] = bitrates;
-    this.tech_['featuresBitrate'] = bitrates.length; //AUTO;
+    this.tech_['featuresBitrateIndex'] = bitrates.length; //AUTO;
 
     videojs.log('Bitrates available:' + bitrates.length);
     //this.mediaPlayer_.setQualityFor('video', maxQuality);
@@ -291,13 +290,21 @@
     this.mediaPlayer_.setQualityFor('video', qualityIndex);
 
     //TODO supprimer ca pour le switch auto
-    this.tech_['featuresBitrate'] = qualityIndex; //AUTO;
+    this.tech_['featuresBitrateIndex'] = qualityIndex; //AUTO;
     this.tech_.trigger('bitratechange');
 
   };
 
   Html5DashJS.prototype.getBitrate = function () {
     return this.mediaPlayer_.getBitrateInfoListFor('video');
+  };
+
+  Html5DashJS.prototype.getPlaybackVideoData = function () {
+    return this.mediaPlayer_.getBitrateInfoListFor('video');
+  };
+
+  Html5DashJS.prototype.getPlaybackAudioData = function () {
+    return this.mediaPlayer_.getBitrateInfoListFor('audio');
   };
 
 
@@ -457,16 +464,16 @@
     if (e.data.stream === 'video') {
       metrics = this.getCribbedMetricsFor('video');
       if (metrics) {
-        if (metrics.bitrateIndexValue !== this.tech_['featuresBitrate']) {
-          this.tech_['featuresBitrate'] = metrics.bitrateIndexValue;
-          this.tech_.trigger('bitratechange');
+        if (metrics.bitrateIndexValue !== this.tech_['featuresBitrateIndex']) {
+          this.tech_['featuresBitrate'] = metrics;
+          this.tech_.trigger(metrics.bitrateIndexValue > this.tech_['featuresBitrateIndex'] ? 'bandwidthIncrease' : 'bandwidthDecrease');
         }
       }
     }
   };
 
   Html5DashJS.prototype.onStreamSwitchComplete = function (e) {
-    this.tech_['featuresBitrate'] = e.data.toStreamInfo.index;
+    this.tech_['featuresBitrateIndex'] = e.data.toStreamInfo.index;
     this.streamInfo = e.data.toStreamInfo;
     var evt = videojs.fixEvent({
       type: 'bitratechange',
@@ -608,6 +615,7 @@
         return new Html5DashJS(source, tech);
       }
     }, 0);
+
   }
 
   videojs.Html5DashJS = Html5DashJS;
