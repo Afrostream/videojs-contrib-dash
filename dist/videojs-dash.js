@@ -197,6 +197,7 @@
       manifestSource;
 
     this.tech_ = tech;
+    this.tech_.getPlaybackStatistics = videojs.bind(this, this.getPlaybackStatistics);
     this.el_ = tech.el();
     this.elParent_ = this.el_.parentNode;
 
