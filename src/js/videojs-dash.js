@@ -134,6 +134,9 @@
     return this.options_ = videojs.util.mergeOptions(this.options_, obj);
   };
 
+  Html5DashJS.prototype.streamInfo = {
+    index: 0
+  };
 
   Html5DashJS.prototype.onInitialized = function (manifest, err) {
     if (err) {
@@ -349,6 +352,9 @@
 
   Html5DashJS.prototype.onMetricChanged = function (e) {
     // get current buffered ranges of video element and keep them up to date
+    if (e.data.stream !== 'video' && e.data.stream !== 'audio') {
+      return;
+    }
     var metrics = this.getCribbedMetricsFor(e.data.stream);
     if (metrics) {
       this.metrics_[e.data.stream] = videojs.util.mergeOptions(this.metrics_[e.data.stream], metrics);
