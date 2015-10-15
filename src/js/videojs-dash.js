@@ -134,9 +134,7 @@
     return this.options_ = videojs.util.mergeOptions(this.options_, obj);
   };
 
-  Html5DashJS.prototype.streamInfo = {
-    index: 0
-  };
+  Html5DashJS.prototype.streamInfo = {};
 
   Html5DashJS.prototype.onInitialized = function (manifest, err) {
     if (err) {
