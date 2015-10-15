@@ -1,17 +1,17 @@
-(function(window, videojs, qunit) {
+(function (window, videojs, qunit) {
   'use strict';
 
   var
-    // local QUnit aliases
-    // http://api.qunitjs.com/
+  // local QUnit aliases
+  // http://api.qunitjs.com/
 
-    // test(name, callback)
+  // test(name, callback)
     test = qunit.test,
-    // ok(value, [message])
+  // ok(value, [message])
     ok = qunit.ok,
-    // strictEqual(actual, expected, [message])
+  // strictEqual(actual, expected, [message])
     strictEqual = qunit.strictEqual,
-    // deepEqual(actual, expected, [message])
+  // deepEqual(actual, expected, [message])
     deepEqual = qunit.deepEqual,
 
     sampleSrc = {
@@ -38,29 +38,48 @@
         resetSrcCalled = false,
         el = document.createElement('div'),
         player = {
-          id: function(){ return 'id'; },
-          el: function(){ return el; },
+          id: function () {
+            return 'id';
+          },
+          el: function () {
+            return el;
+          },
           options_: {},
-          options: function(){ return this.options_; },
-          bufferedPercent: function() { return 0; },
-          controls: function(){ return false; },
-          usingNativeControls: function(){ return false; },
-          on: function(){ return this; },
-          off: function() { return this; },
-          ready: function(){},
-          addChild: function(){},
-          trigger: function(){}
+          options: function () {
+            return this.options_;
+          },
+          bufferedPercent: function () {
+            return 0;
+          },
+          controls: function () {
+            return false;
+          },
+          usingNativeControls: function () {
+            return false;
+          },
+          on: function () {
+            return this;
+          },
+          off: function () {
+            return this;
+          },
+          ready: function () {
+          },
+          addChild: function () {
+          },
+          trigger: function () {
+          }
         },
         tech,
-        contextObj = { fake: 'context' },
+        contextObj = {fake: 'context'},
 
-        //stubs
+      //stubs
         origContext = Dash.di.DashContext,
         origMediaPlayer = MediaPlayer,
         origVJSXHR = videojs.xhr,
         origResetSrc = videojs.Html5DashJS.prototype.resetSrc_;
 
-      expect(8);
+      expect(9);
 
       el.innerHTML = '<div />';
       tech = new videojs.Html5(player, {});
@@ -88,6 +107,12 @@
           setAutoPlay: function (autoplay) {
             strictEqual(autoplay, false, 'autoplay is set to false by default');
           },
+          setAutoSwitchQuality: function (bool) {
+            strictEqual(bool, true, 'setAutoSwitchQuality is set to false by default');
+          },
+          addEventListener: function () {
+            //TODO add test
+          },
           attachSource: function (manifest, keySystem, keySystemOptions) {
             deepEqual(keySystemOptions, expectedKeySystemOptions,
               'src and manifest key system options are merged');
@@ -112,6 +137,29 @@
         Debug: origMediaPlayer.utils.Debug
       };
 
+      window.MediaPlayer.events = {
+        STREAM_INITIALIZED: 'STREAM_INITIALIZED',
+        STREAM_SWITCH_STARTED: 'STREAM_SWITCH_STARTED',
+        STREAM_SWITCH_COMPLETED: 'STREAM_SWITCH_COMPLETED',
+      };
+      window.MediaPlayer.dependencies = {
+        BufferController: {
+          BUFFER_SIZE_REQUIRED: 'required',
+          BUFFER_SIZE_MIN: 'min',
+          BUFFER_SIZE_INFINITY: 'infinity',
+          DEFAULT_MIN_BUFFER_TIME: 12,
+          LOW_BUFFER_THRESHOLD: 4,
+          BUFFER_TIME_AT_TOP_QUALITY: 30,
+          BUFFER_TIME_AT_TOP_QUALITY_LONG_FORM: 300,
+          LONG_FORM_CONTENT_DURATION_THRESHOLD: 600,
+          RICH_BUFFER_THRESHOLD: 20,
+          BUFFER_LOADED: 'bufferLoaded',
+          BUFFER_EMPTY: 'bufferStalled',
+          BUFFER_TO_KEEP: 30,
+          BUFFER_PRUNING_INTERVAL: 30
+        }
+      };
+
       // We have to override this because PhantomJS does not have Encrypted Media Extensions
       videojs.Html5DashJS.prototype.resetSrc_ = function (fn) {
         resetSrcCalled = true;
@@ -123,25 +171,25 @@
     };
 
   qunit.module('videojs-dash dash.js SourceHandler', {
-    setup: function() {
+    setup: function () {
 
     },
-    teardown: function() {
+    teardown: function () {
     }
   });
 
-  test('validate the Dash.js SourceHandler in Html5', function() {
+  test('validate the Dash.js SourceHandler in Html5', function () {
     var dashSource = {
-      src:'some.mpd',
-      type:'application/dash+xml'
-    },
-    maybeDashSource = {
-      src:'some.mpd'
-    },
-    nonDashSource = {
-      src:'some.mp4',
-      type:'video/mp4'
-    };
+        src: 'some.mpd',
+        type: 'application/dash+xml'
+      },
+      maybeDashSource = {
+        src: 'some.mpd'
+      },
+      nonDashSource = {
+        src: 'some.mp4',
+        type: 'video/mp4'
+      };
 
     var dashSourceHandler = videojs.Html5.selectSourceHandler(dashSource);
 
@@ -155,7 +203,7 @@
       'canHandleSource with anything else returns ""');
   });
 
-  test('validate buildDashJSProtData function', function() {
+  test('validate buildDashJSProtData function', function () {
     var output = videojs.Html5DashJS.buildDashJSProtData(sampleSrc.keySystemOptions);
 
     var empty = videojs.Html5DashJS.buildDashJSProtData(undefined);
@@ -165,7 +213,7 @@
     deepEqual(empty, {}, 'undefined keySystemOptions returns empty object');
   });
 
-  test('validate handleSource function with src-provided key options', function() {
+  test('validate handleSource function with src-provided key options', function () {
     var
       manifestWithProtection = {
         Period: {
@@ -175,14 +223,14 @@
       mergedKeySystemOptions = {
         'com.widevine.alpha': {
           extra: 'data',
-          laURL:'https://example.com/license'
+          laURL: 'https://example.com/license'
         }
       };
 
     testHandleSource(sampleSrc, manifestWithProtection, mergedKeySystemOptions);
   });
 
-  test('validate handleSource function with invalid manifest', function() {
+  test('validate handleSource function with invalid manifest', function () {
     var
       manifestWithProtection = {},
       mergedKeySystemOptions = {};

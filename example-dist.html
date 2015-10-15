@@ -45,13 +45,26 @@
        crossorigin
        controls>
     <source
-            src="http://yt-dash-mse-test.commondatastorage.googleapis.com/media/motion-20120802-manifest.mpd"
+            src="http://cdn1.afrostream.tv/vod/BWNG_Ep1_bis/44ea1a1f7bd1722b.ism/44ea1a1f7bd1722b.mpd"
             type="application/dash+xml">
     <track src="https://afrostream-img.s3-eu-west-1.amazonaws.com/production/caption/2015/09/913ed362da38f821ed4b-vimeocom136679382.fr.vtt"
            kind="captions" srclang="fr" label="fr">
 </video>
 <script>
-    var player = videojs('video');
+    var player = videojs('video', {
+        html5: {
+            buffer: {
+                minBufferTime: 12,
+                lowBufferThreshold: 4,
+                bufferTimeAtTopQuality: 30,
+                bufferTimeAtTopQualityLongForm: 300,
+                longFormContentDurationThreshold: 600,
+                richBufferThreshold: 20,
+                bufferToKeep: 8,
+                bufferPruningInterval: 8
+            }
+        }
+    });
 </script>
 </body>
 </html>

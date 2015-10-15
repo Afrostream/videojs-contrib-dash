@@ -1,4 +1,4 @@
-/*! videojs-contrib-dash - v1.1.1 - 2015-10-14
+/*! videojs-contrib-dash - v1.1.1 - 2015-10-15
  * Copyright (c) 2015 Brightcove  */
 (function (window, videojs) {
   'use strict';
@@ -193,7 +193,7 @@
    */
   function Html5DashJS(source, tech) {
     var
-      options = tech.options(),
+      options = this.options(videojs.util.mergeOptions(this.options_, tech.options())),
       manifestSource;
 
     this.tech_ = tech;
@@ -232,7 +232,7 @@
     // Must run controller before these two lines or else there is no
     // element to bind to.
     this.mediaPlayer_.startup();
-    this.mediaPlayer_.setAutoSwitchQuality(true);
+    //this.mediaPlayer_.setAutoSwitchQuality(true);
     this.mediaPlayer_.addEventListener(MediaPlayer.events.STREAM_INITIALIZED,
       videojs.bind(this, this.onInitialized));
     this.mediaPlayer_.addEventListener(MediaPlayer.events.STREAM_SWITCH_STARTED,
@@ -241,8 +241,14 @@
       videojs.bind(this, this.onStreamSwitchComplete));
 
     //override config
-    MediaPlayer.dependencies.BufferController.BUFFER_TO_KEEP = 10;
-    MediaPlayer.dependencies.BufferController.BUFFER_PRUNING_INTERVAL = 10;
+    MediaPlayer.dependencies.BufferController.DEFAULT_MIN_BUFFER_TIME = options.buffer.minBufferTime;
+    MediaPlayer.dependencies.BufferController.LOW_BUFFER_THRESHOLD = options.buffer.lowBufferThreshold;
+    MediaPlayer.dependencies.BufferController.BUFFER_TIME_AT_TOP_QUALITY = options.buffer.bufferTimeAtTopQuality;
+    MediaPlayer.dependencies.BufferController.BUFFER_TIME_AT_TOP_QUALITY_LONG_FORM = options.buffer.bufferTimeAtTopQualityLongForm;
+    MediaPlayer.dependencies.BufferController.LONG_FORM_CONTENT_DURATION_THRESHOLD = options.buffer.longFormContentDurationThreshold;
+    MediaPlayer.dependencies.BufferController.RICH_BUFFER_THRESHOLD = options.buffer.richBufferThreshold;
+    MediaPlayer.dependencies.BufferController.BUFFER_TO_KEEP = options.buffer.bufferToKeep;
+    MediaPlayer.dependencies.BufferController.BUFFER_PRUNING_INTERVAL = options.buffer.bufferPruningInterval;
 
     this.mediaPlayer_.addEventListener(MediaPlayer.events.METRIC_CHANGED, videojs.bind(this, this.onMetricChanged));
     this.mediaPlayer_.attachView(this.el_);
@@ -252,7 +258,7 @@
       this.mediaPlayer_.setAutoPlay(false);
     }
 
-    //this.mediaPlayer_.setAutoSwitchQuality(options.autoSwitch);
+    this.mediaPlayer_.setAutoSwitchQuality(options.autoSwitch);
 
 
     // Fetches and parses the manifest - WARNING the callback is non-standard "error-last" style
@@ -261,8 +267,27 @@
   }
 
   Html5DashJS.prototype.options_ = {
-    autoSwitch: true
+    autoSwitch: true,
+    buffer: {
+      minBufferTime: 12,
+      lowBufferThreshold: 4,
+      bufferTimeAtTopQuality: 30,
+      bufferTimeAtTopQualityLongForm: 300,
+      longFormContentDurationThreshold: 600,
+      richBufferThreshold: 20,
+      bufferToKeep: 30,
+      bufferPruningInterval: 30
+    }
   };
+
+  Html5DashJS.prototype.options = function (obj) {
+    if (obj === undefined) {
+      return this.options_;
+    }
+
+    return this.options_ = videojs.util.mergeOptions(this.options_, obj);
+  };
+
 
   Html5DashJS.prototype.onInitialized = function (manifest, err) {
     if (err) {
@@ -299,8 +324,11 @@
     return this.mediaPlayer_.getBitrateInfoListFor('video');
   };
 
-  Html5DashJS.prototype.getPlaybackVideoData = function () {
-    return this.mediaPlayer_.getBitrateInfoListFor('video');
+  Html5DashJS.prototype.getPlaybackStatistics = function () {
+    return {
+      video: this.getCribbedMetricsFor('video'),
+      audio: this.getCribbedMetricsFor('audio')
+    };
   };
 
   Html5DashJS.prototype.getPlaybackAudioData = function () {
@@ -315,15 +343,15 @@
       bufferLevel,
       httpRequests,
       droppedFramesMetrics,
-      bitrateIndexValue,
-      bandwidthValue,
+      bitrateIndex,
+      bandwidth,
       pendingValue,
-      numBitratesValue,
-      bufferLengthValue = 0,
+      numBitrates,
+      bufferLength = 0,
       movingLatency = {},
       movingDownload = {},
       movingRatio = {},
-      droppedFramesValue = 0,
+      droppedFrames = 0,
       requestsQueue,
       fillmoving = function (type, Requests) {
         var requestWindow,
@@ -405,47 +433,47 @@
       var streamIdx = this.streamInfo.index;
 
       if (repSwitch !== null) {
-        bitrateIndexValue = metricsExt.getIndexForRepresentation(repSwitch.to, streamIdx);
-        bandwidthValue = metricsExt.getBandwidthForRepresentation(repSwitch.to, streamIdx);
-        bandwidthValue = bandwidthValue / 1000;
-        bandwidthValue = Math.round(bandwidthValue);
+        bitrateIndex = metricsExt.getIndexForRepresentation(repSwitch.to, streamIdx);
+        bandwidth = metricsExt.getBandwidthForRepresentation(repSwitch.to, streamIdx);
+        bandwidth = bandwidth / 1000;
+        bandwidth = Math.round(bandwidth);
       }
 
-      numBitratesValue = metricsExt.getMaxIndexForBufferType(type, streamIdx);
+      numBitrates = metricsExt.getMaxIndexForBufferType(type, streamIdx);
 
       if (bufferLevel !== null) {
-        bufferLengthValue = bufferLevel.level.toPrecision(5);
+        bufferLength = bufferLevel.level.toPrecision(5);
       }
 
       if (droppedFramesMetrics !== null) {
-        droppedFramesValue = droppedFramesMetrics.droppedFrames;
+        droppedFrames = droppedFramesMetrics.droppedFrames;
       }
 
-      if (isNaN(bandwidthValue) || bandwidthValue === undefined) {
-        bandwidthValue = 0;
+      if (isNaN(bandwidth) || bandwidth === undefined) {
+        bandwidth = 0;
       }
 
-      if (isNaN(bitrateIndexValue) || bitrateIndexValue === undefined) {
-        bitrateIndexValue = 0;
+      if (isNaN(bitrateIndex) || bitrateIndex === undefined) {
+        bitrateIndex = 0;
       }
 
-      if (isNaN(numBitratesValue) || numBitratesValue === undefined) {
-        numBitratesValue = 0;
+      if (isNaN(numBitrates) || numBitrates === undefined) {
+        numBitrates = 0;
       }
 
-      if (isNaN(bufferLengthValue) || bufferLengthValue === undefined) {
-        bufferLengthValue = 0;
+      if (isNaN(bufferLength) || bufferLength === undefined) {
+        bufferLength = 0;
       }
 
       pendingValue = this.mediaPlayer_.getQualityFor(type);
 
       return {
-        bandwidthValue: bandwidthValue,
-        bitrateIndexValue: bitrateIndexValue,
-        pendingIndex: (pendingValue !== bitrateIndexValue) ? '(-> ' + (pendingValue) + ')' : '',
-        numBitratesValue: numBitratesValue,
-        bufferLengthValue: bufferLengthValue,
-        droppedFramesValue: droppedFramesValue,
+        bandwidth: bandwidth,
+        bitrateIndex: bitrateIndex,
+        pendingIndex: (pendingValue !== bitrateIndex) ? '(-> ' + (pendingValue) + ')' : '',
+        numBitrates: numBitrates,
+        bufferLength: bufferLength,
+        droppedFrames: droppedFrames,
         movingLatency: movingLatency,
         movingDownload: movingDownload,
         movingRatio: movingRatio,
@@ -464,9 +492,10 @@
     if (e.data.stream === 'video') {
       metrics = this.getCribbedMetricsFor('video');
       if (metrics) {
-        if (metrics.bitrateIndexValue !== this.tech_['featuresBitrateIndex']) {
+        if (metrics.bitrateIndex !== this.tech_['featuresBitrateIndex']) {
+          this.tech_['featuresBitrateIndex'] = metrics.bitrateIndex;
           this.tech_['featuresBitrate'] = metrics;
-          this.tech_.trigger(metrics.bitrateIndexValue > this.tech_['featuresBitrateIndex'] ? 'bandwidthIncrease' : 'bandwidthDecrease');
+          this.tech_.trigger(metrics.bitrateIndex > this.tech_['featuresBitrateIndex'] ? 'bandwidthIncrease' : 'bandwidthDecrease');
         }
       }
     }
