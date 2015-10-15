@@ -329,7 +329,7 @@
   };
 
   Html5DashJS.METRICS_DATA = {
-    bandwidth: 0,
+    bandwidth: -1,
     bitrateIndex: 0,
     pendingIndex: '',
     numBitrates: 0,
