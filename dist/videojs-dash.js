@@ -325,11 +325,26 @@
     return this.mediaPlayer_.getBitrateInfoListFor('video');
   };
 
+  Html5DashJS.METRICS_DATA = {
+    bandwidth: 0,
+    bitrateIndex: 0,
+    pendingIndex: '',
+    numBitrates: 0,
+    bufferLength: 0,
+    droppedFrames: 0,
+    movingLatency: 0,
+    movingDownload: 0,
+    movingRatio: 0,
+    requestsQueue: 0
+  };
+
+  Html5DashJS.prototype.metrics_ = {
+    video: videojs.util.mergeOptions({}, Html5DashJS.METRICS_DATA),
+    audio: videojs.util.mergeOptions({}, Html5DashJS.METRICS_DATA)
+  };
+
   Html5DashJS.prototype.getPlaybackStatistics = function () {
-    return {
-      video: this.getCribbedMetricsFor('video'),
-      audio: this.getCribbedMetricsFor('audio')
-    };
+    return this.metrics_;
   };
 
   Html5DashJS.prototype.getPlaybackAudioData = function () {
@@ -488,11 +503,11 @@
 
 
   Html5DashJS.prototype.onMetricChanged = function (e) {
-    var metrics;
     // get current buffered ranges of video element and keep them up to date
-    if (e.data.stream === 'video') {
-      metrics = this.getCribbedMetricsFor('video');
-      if (metrics) {
+    var metrics = this.getCribbedMetricsFor(e.data.stream);
+    if (metrics) {
+      this.metrics_[e.data.stream] = videojs.util.mergeOptions(this.metrics_[e.data.stream], metrics);
+      if (e.data.stream === 'video') {
         if (metrics.bitrateIndex !== this.tech_['featuresBitrateIndex']) {
           this.tech_['featuresBitrateIndex'] = metrics.bitrateIndex;
           this.tech_['featuresBitrate'] = metrics;
