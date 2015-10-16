@@ -1,4 +1,4 @@
-/*! videojs-contrib-dash - v1.1.1 - 2015-10-15
+/*! videojs-contrib-dash - v1.1.1 - 2015-10-16
  * Copyright (c) 2015 Brightcove  */
 (function (window, videojs) {
   'use strict';
@@ -513,9 +513,10 @@
       this.metrics_[e.data.stream] = videojs.util.mergeOptions(this.metrics_[e.data.stream], metrics);
       if (e.data.stream === 'video') {
         if (metrics.bitrateIndex !== this.tech_['featuresBitrateIndex']) {
+          var oldBitrateIndex = this.tech_['featuresBitrateIndex'];
           this.tech_['featuresBitrateIndex'] = metrics.bitrateIndex;
           this.tech_['featuresBitrate'] = metrics;
-          this.tech_.trigger(metrics.bitrateIndex > this.tech_['featuresBitrateIndex'] ? 'bandwidthIncrease' : 'bandwidthDecrease');
+          this.tech_.trigger(metrics.bitrateIndex > oldBitrateIndex ? 'bandwidthIncrease' : 'bandwidthDecrease');
         }
       }
     }

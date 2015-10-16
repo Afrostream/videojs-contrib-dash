@@ -358,9 +358,10 @@
       this.metrics_[e.data.stream] = videojs.util.mergeOptions(this.metrics_[e.data.stream], metrics);
       if (e.data.stream === 'video') {
         if (metrics.bitrateIndex !== this.tech_['featuresBitrateIndex']) {
+          var oldBitrateIndex = this.tech_['featuresBitrateIndex'];
           this.tech_['featuresBitrateIndex'] = metrics.bitrateIndex;
           this.tech_['featuresBitrate'] = metrics;
-          this.tech_.trigger(metrics.bitrateIndex > this.tech_['featuresBitrateIndex'] ? 'bandwidthIncrease' : 'bandwidthDecrease');
+          this.tech_.trigger(metrics.bitrateIndex > oldBitrateIndex ? 'bandwidthIncrease' : 'bandwidthDecrease');
         }
       }
     }
